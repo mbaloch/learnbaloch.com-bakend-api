@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -18,8 +19,9 @@ public class TranslateController {
     public String ping() {
         return "pong";
     }
+    @Value("${translator.url}")
+    private String translatorUrl;
 
-    private static final String TRANSLATION_API_URL = "http://translator:9000/v1/chat/completions";
 
     @Autowired
     private RestTemplate restTemplate;
@@ -30,6 +32,7 @@ public class TranslateController {
     @PostMapping("/translate")
     public ResponseEntity<Object> translateText(@RequestBody String text) throws ExecutionException, InterruptedException {
         logger.info("Translate request received for text: {}", text);
+        logger.info("Translator URL configured as: {}", translatorUrl);
         
         // First, check if translation already exists in Firestore
         Map<String, Object> existingTranslation = firestoreService.findTranslationByOriginalText(text);
@@ -70,7 +73,7 @@ public class TranslateController {
         requestBody.put("top_p", 0.9);
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-        ResponseEntity<Map> response = restTemplate.postForEntity(TRANSLATION_API_URL, request, Map.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity(translatorUrl, request, Map.class);
 
         if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
             Map<String, Object> choices = (Map<String, Object>) ((List<?>) response.getBody().get("choices")).get(0);

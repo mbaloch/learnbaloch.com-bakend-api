@@ -35,7 +35,8 @@ public class TranslateApiApplication {
                                 "http://learnbalochi.com",
                                 "https://learnbalochi.com",
                                 "http://localhost:4200",
-                                "http://localhost:4100"
+                                "http://localhost:4100",
+                                "http://localhost:8084"
 
                         )
                         .allowedMethods("GET","POST","PUT","DELETE","OPTIONS")

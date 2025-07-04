@@ -10,6 +10,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,6 +25,9 @@ public class InpageConvertion {
     @Autowired
     private MyFirestoreService firestoreService; // Use your MyFirestoreService to save data
     String collectionName = "inpage_converted_files";
+    
+    @Value("${inpage.convertor.url}")
+    private String inpageConvertorApiUrl;
 
     @GetMapping("/list")
     public PaginatedResponse listFiles(
@@ -76,11 +80,9 @@ public class InpageConvertion {
 
         HttpEntity<LinkedMultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-        // External API URL
-        String externalApiUrl = "http://inpage-unicode-api:8000/api/convert/";
 
         // Step 2: Make the API call and get the response
-        ResponseEntity<Map> response = restTemplate.postForEntity(externalApiUrl, requestEntity, Map.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity(inpageConvertorApiUrl, requestEntity, Map.class);
 
         if (response.getStatusCode() == HttpStatus.OK) {
             // Step 3: Parse the JSON response to extract "contents"

@@ -18,8 +18,28 @@ import javax.annotation.PostConstruct;
          @PostConstruct
          public void initialize() {
              try {
-                 FileInputStream serviceAccount =
-                         new FileInputStream("src/main/resources/learnbalochi-firebase-adminsdk-fbsvc-50dbb19d8d.json");
+                 // Try multiple possible paths for the Firebase service account file
+                 String[] possiblePaths = {
+                     "src/main/resources/learnbalochi-firebase-adminsdk-fbsvc-50dbb19d8d.json",
+                     "/app/src/main/resources/learnbalochi-firebase-adminsdk-fbsvc-50dbb19d8d.json",
+                     "learnbalochi-firebase-adminsdk-fbsvc-50dbb19d8d.json"
+                 };
+                 
+                 FileInputStream serviceAccount = null;
+                 for (String path : possiblePaths) {
+                     try {
+                         serviceAccount = new FileInputStream(path);
+                         logger.info("Found Firebase service account file at: {}", path);
+                         break;
+                     } catch (IOException e) {
+                         logger.debug("Firebase service account file not found at: {}", path);
+                     }
+                 }
+                 
+                 if (serviceAccount == null) {
+                     logger.error("Firebase service account file not found in any of the expected locations");
+                     return;
+                 }
 
                  FirebaseOptions options = FirebaseOptions.builder()
                          .setCredentials(GoogleCredentials.fromStream(serviceAccount))
@@ -27,6 +47,7 @@ import javax.annotation.PostConstruct;
                          .build();
 
                  FirebaseApp.initializeApp(options);
+                 logger.info("Firebase initialized successfully");
              } catch (IOException e) {
                  logger.error("Error initializing Firebase", e);
              }
