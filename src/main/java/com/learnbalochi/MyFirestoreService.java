@@ -308,4 +308,96 @@ public class MyFirestoreService {
         
         return null; // No translation found
     }
+
+    public PaginatedResponse getDocumentsWithPrivacyFilter(String collectionName, int page, int size, String currentUserUid) throws InterruptedException, ExecutionException {
+        Firestore db = FirestoreClient.getFirestore();
+        CollectionReference collection = db.collection(collectionName);
+        
+        // Get all documents first
+        ApiFuture<QuerySnapshot> querySnapshot = collection.get();
+        List<QueryDocumentSnapshot> allDocuments = querySnapshot.get().getDocuments();
+        
+        // Filter documents based on privacy settings
+        List<Map<String, Object>> filteredDocuments = new ArrayList<>();
+        for (DocumentSnapshot document : allDocuments) {
+            Map<String, Object> documentData = document.getData();
+            if (documentData != null && isDocumentAccessible(documentData, currentUserUid)) {
+                // Create a new map without the "content" field
+                Map<String, Object> documentWithoutContent = new HashMap<>(documentData);
+                documentWithoutContent.remove("content");
+                // Add the document ID to the data
+                documentWithoutContent.put("documentId", document.getId());
+                filteredDocuments.add(documentWithoutContent);
+            }
+        }
+        
+        // Calculate pagination
+        long totalElements = filteredDocuments.size();
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        int startIndex = (page - 1) * size;
+        int endIndex = Math.min(startIndex + size, filteredDocuments.size());
+        
+        // Get paginated subset
+        List<Map<String, Object>> paginatedDocuments = new ArrayList<>();
+        if (startIndex < filteredDocuments.size()) {
+            paginatedDocuments = filteredDocuments.subList(startIndex, endIndex);
+        }
+        
+        PaginatedResponse.PaginationMeta paginationMeta = new PaginatedResponse.PaginationMeta(page, size, totalElements);
+        return new PaginatedResponse(paginatedDocuments, paginationMeta);
+    }
+
+    public PaginatedResponse searchDocumentsWithPrivacyFilter(String collectionName, String searchQuery, int page, int size, String currentUserUid) throws InterruptedException, ExecutionException {
+        Firestore db = FirestoreClient.getFirestore();
+        CollectionReference collection = db.collection(collectionName);
+        
+        // Get all documents first
+        ApiFuture<QuerySnapshot> querySnapshot = collection.get();
+        List<QueryDocumentSnapshot> allDocuments = querySnapshot.get().getDocuments();
+        
+        // Filter documents based on search query and privacy settings
+        List<Map<String, Object>> filteredDocuments = new ArrayList<>();
+        String lowerSearchQuery = searchQuery.toLowerCase();
+        
+        for (DocumentSnapshot document : allDocuments) {
+            Map<String, Object> documentData = document.getData();
+            if (documentData != null && isDocumentAccessible(documentData, currentUserUid) && matchesSearch(documentData, lowerSearchQuery)) {
+                // Create a new map without the "content" field
+                Map<String, Object> documentWithoutContent = new HashMap<>(documentData);
+                documentWithoutContent.remove("content");
+                // Add the document ID to the data
+                documentWithoutContent.put("documentId", document.getId());
+                filteredDocuments.add(documentWithoutContent);
+            }
+        }
+        
+        // Calculate pagination
+        long totalElements = filteredDocuments.size();
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        int startIndex = (page - 1) * size;
+        int endIndex = Math.min(startIndex + size, filteredDocuments.size());
+        
+        // Get paginated subset
+        List<Map<String, Object>> paginatedDocuments = new ArrayList<>();
+        if (startIndex < filteredDocuments.size()) {
+            paginatedDocuments = filteredDocuments.subList(startIndex, endIndex);
+        }
+        
+        PaginatedResponse.PaginationMeta paginationMeta = new PaginatedResponse.PaginationMeta(page, size, totalElements);
+        return new PaginatedResponse(paginatedDocuments, paginationMeta);
+    }
+
+    private boolean isDocumentAccessible(Map<String, Object> documentData, String currentUserUid) {
+        // If no user is logged in, only show public documents
+        if (currentUserUid == null || currentUserUid.isEmpty()) {
+            Boolean isPublic = (Boolean) documentData.get("isPublic");
+            return isPublic != null && isPublic;
+        }
+        
+        // If user is logged in, show public documents and their own private documents
+        Boolean isPublic = (Boolean) documentData.get("isPublic");
+        String uploaderUid = (String) documentData.get("uploaderUid");
+        
+        return (isPublic != null && isPublic) || currentUserUid.equals(uploaderUid);
+    }
 }

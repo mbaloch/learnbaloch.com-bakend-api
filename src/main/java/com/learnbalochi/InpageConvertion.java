@@ -32,13 +32,14 @@ public class InpageConvertion {
     @GetMapping("/list")
     public PaginatedResponse listFiles(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String userUid
     ) throws ExecutionException, InterruptedException {
         // Validate pagination parameters
         if (page < 1) page = 1;
         if (size < 1 || size > 100) size = 10; // Limit max page size to 100
 
-        return firestoreService.getDocumentsWithoutContentPaginated(collectionName, page, size);
+        return firestoreService.getDocumentsWithPrivacyFilter(collectionName, page, size, userUid);
     }
 
     @GetMapping("/{documentId}")
@@ -97,6 +98,10 @@ public class InpageConvertion {
                     dataToSave.put("description", meta.fileDescription());
                     dataToSave.put("category", meta.category());
                     dataToSave.put("content", unicodeText);
+                    dataToSave.put("isPublic", meta.isPublic());
+                    dataToSave.put("uploaderEmail", meta.uploaderEmail());
+                    dataToSave.put("uploaderUid", meta.uploaderUid());
+                    dataToSave.put("uploadDate", System.currentTimeMillis());
 
                     try {
                         String documentId = firestoreService.addDocumentToCollection(collectionName, dataToSave); // Save using MyFirestoreService
@@ -130,10 +135,11 @@ public class InpageConvertion {
     public PaginatedResponse searchFiles(
             @RequestParam String query,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String userUid
     ) throws ExecutionException, InterruptedException {
         if (page < 1) page = 1;
         if (size < 1 || size > 100) size = 10;
-        return firestoreService.searchDocumentsWithoutContent(collectionName, query, page, size);
+        return firestoreService.searchDocumentsWithPrivacyFilter(collectionName, query, page, size, userUid);
     }
 }
