@@ -56,65 +56,73 @@ public class InpageConvertion {
     public ResponseEntity<?> uploadInpage(
             @RequestParam("file") MultipartFile file,
             @RequestParam("meta") String metaJson
-    ) throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-        FileMetaDTO meta = mapper.readValue(metaJson, FileMetaDTO.class);
-        String collectionName = "inpage_converted_files";
+    ) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            FileMetaDTO meta = mapper.readValue(metaJson, FileMetaDTO.class);
+            String collectionName = "inpage_converted_files";
 
-        logger.info("Uploaded inpage file received");
+            logger.info("Uploaded inpage file received");
 
-        // Step 1: Prepare the file to be forwarded to the external API
-        ByteArrayResource resource = new ByteArrayResource(file.getBytes()) {
-            @Override
-            public String getFilename() {
-                return file.getOriginalFilename();
-            }
-        };
+            // Step 1: Prepare the file to be forwarded to the external API
+            ByteArrayResource resource = new ByteArrayResource(file.getBytes()) {
+                @Override
+                public String getFilename() {
+                    return file.getOriginalFilename();
+                }
+            };
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-        // Use LinkedMultiValueMap for multipart/form-data
-        LinkedMultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("file", resource);
+            // Use LinkedMultiValueMap for multipart/form-data
+            LinkedMultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("file", resource);
 
-        HttpEntity<LinkedMultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
+            HttpEntity<LinkedMultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
+            logger.info("Calling inpage convertor API at {}...", inpageConvertorApiUrl);
+            ResponseEntity<Map> response = restTemplate.postForEntity(inpageConvertorApiUrl, requestEntity, Map.class);
+            logger.info("Inpage convertor API response status: {}", response.getStatusCode());
 
-        // Step 2: Make the API call and get the response
-        ResponseEntity<Map> response = restTemplate.postForEntity(inpageConvertorApiUrl, requestEntity, Map.class);
+            if (response.getStatusCode() == HttpStatus.OK) {
+                Map<String, Object> responseBody = response.getBody();
+                if (responseBody != null && responseBody.containsKey("content")) {
+                    String unicodeText = responseBody.get("content").toString();
 
-        if (response.getStatusCode() == HttpStatus.OK) {
-            // Step 3: Parse the JSON response to extract "contents"
-            Map<String, Object> responseBody = response.getBody();
-            if (responseBody != null && responseBody.containsKey("contents")) {
-                String unicodeText = responseBody.get("contents").toString(); // Extract the contents field
+                    // Step 4: Save the data (metadata + contents) to Firebase
+                    Map<String, Object> dataToSave = new HashMap<>();
+                    dataToSave.put("fileName", meta.fileName());
+                    dataToSave.put("authorName", meta.authors());
+                    dataToSave.put("description", meta.fileDescription());
+                    dataToSave.put("category", meta.category());
+                    dataToSave.put("content", unicodeText);
 
-                // Step 4: Save the data (metadata + contents) to Firebase
-                Map<String, Object> dataToSave = new HashMap<>();
-                dataToSave.put("fileName", meta.fileName());
-                dataToSave.put("authorName", meta.authors());
-                dataToSave.put("description", meta.fileDescription());
-                dataToSave.put("category", meta.category());
-                dataToSave.put("content", unicodeText);
+                    try {
+                        String documentId = firestoreService.addDocumentToCollection(collectionName, dataToSave); // Save using MyFirestoreService
 
-                try {
-                    String documentId = firestoreService.addDocumentToCollection(collectionName, dataToSave); // Save using MyFirestoreService
-                    
-                    // Add the document ID to the response
-                    Map<String, Object> responseData = new HashMap<>(dataToSave);
-                    responseData.put("documentId", documentId);
-                    
-                    return new ResponseEntity<>(responseData, HttpStatus.OK);
-                } catch (InterruptedException | ExecutionException e) {
-                    throw new RuntimeException("Error while saving data to Firestore", e);
+                        // Add the document ID to the response
+                        Map<String, Object> responseData = new HashMap<>(dataToSave);
+                        responseData.put("documentId", documentId);
+
+                        return new ResponseEntity<>(responseData, HttpStatus.OK);
+                    } catch (InterruptedException | ExecutionException e) {
+                        logger.error("Error while saving data to Firestore", e);
+                        throw new RuntimeException("Error while saving data to Firestore", e);
+                    }
+                } else {
+                    logger.error("Convertor API response missing 'content': {}", responseBody);
+                    return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
                 }
             } else {
+                logger.error("Inpage convertor API returned non-OK status: {}", response.getStatusCode());
                 return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
             }
-        } else {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-
+        } catch (Exception e) {
+            logger.error("Error during file upload", e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Upload failed: " + e.getMessage());
+            return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 

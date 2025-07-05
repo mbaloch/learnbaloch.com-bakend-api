@@ -31,6 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Firebase Service Account Files ###
+src/main/resources/*-firebase-adminsdk*.json
 src/main/resources/learnbalochi-firebase-adminsdk-fbsvc-50dbb19d8d.json
 
 ### Project-specific directories ###
