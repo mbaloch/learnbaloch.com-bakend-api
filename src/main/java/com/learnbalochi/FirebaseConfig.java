@@ -27,6 +27,12 @@ public class FirebaseConfig {
 
     @PostConstruct
     public void initialize() {
+        // Check if Firebase is already initialized to prevent multiple initialization errors
+        if (FirebaseApp.getApps().size() > 0) {
+            logger.info("Firebase is already initialized, skipping initialization");
+            return;
+        }
+
         try {
             // Try multiple possible paths for the Firebase service account file
             String[] possiblePaths = {
