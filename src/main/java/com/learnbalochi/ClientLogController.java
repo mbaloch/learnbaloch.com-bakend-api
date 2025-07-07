@@ -53,7 +53,16 @@ public class ClientLogController {
                 try {
                     enrichLogData(log);
                     Map<String, Object> logData = convertToMap(log);
-                    firestoreService.addDocumentToCollection(COLLECTION_NAME, logData);
+                    String documentId = firestoreService.addDocumentToCollection(COLLECTION_NAME, logData);
+                    // Update the same document to set the 'id' field
+                    Map<String, Object> idUpdate = new HashMap<>();
+                    idUpdate.put("id", documentId);
+                    try {
+                        firestoreService.updateDocumentInCollection(COLLECTION_NAME, documentId, idUpdate);
+                        logger.info("[BATCH] Updated log document {} with id field", documentId);
+                    } catch (Exception updateEx) {
+                        logger.error("[BATCH] Failed to update log document {} with id field: {}", documentId, updateEx.getMessage());
+                    }
                     successCount++;
                 } catch (Exception e) {
                     logger.error("Failed to save log entry: {}", e.getMessage());
@@ -134,6 +143,15 @@ public class ClientLogController {
             
             // Save to Firestore
             String documentId = firestoreService.addDocumentToCollection(COLLECTION_NAME, logData);
+            // Update the same document to set the 'id' field
+            Map<String, Object> idUpdate = new HashMap<>();
+            idUpdate.put("id", documentId);
+            try {
+                firestoreService.updateDocumentInCollection(COLLECTION_NAME, documentId, idUpdate);
+                logger.info("Updated log document {} with id field", documentId);
+            } catch (Exception updateEx) {
+                logger.error("Failed to update log document {} with id field: {}", documentId, updateEx.getMessage());
+            }
             
             // Log to server logs as well
             String serverLogMessage = String.format("Client %s: %s (User: %s, URL: %s)", 

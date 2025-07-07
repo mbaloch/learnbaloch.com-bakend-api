@@ -17,28 +17,28 @@ public class ClientLog {
     @JsonProperty("message")
     private String message;
     
-    @JsonProperty("user_id")
+    @JsonProperty("userId")
     private String userId;
     
-    @JsonProperty("user_email")
+    @JsonProperty("userEmail")
     private String userEmail;
     
-    @JsonProperty("session_id")
+    @JsonProperty("sessionId")
     private String sessionId;
     
     @JsonProperty("url")
     private String url;
     
-    @JsonProperty("user_agent")
+    @JsonProperty("userAgent")
     private String userAgent;
     
-    @JsonProperty("error_stack")
+    @JsonProperty("errorStack")
     private String errorStack;
     
-    @JsonProperty("additional_data")
+    @JsonProperty("additionalData")
     private Map<String, Object> additionalData;
     
-    @JsonProperty("client_version")
+    @JsonProperty("clientVersion")
     private String clientVersion;
     
     @JsonProperty("environment")
