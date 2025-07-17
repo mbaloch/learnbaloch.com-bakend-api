@@ -32,7 +32,7 @@ public class TranslateApiApplication {
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
                         .allowedOrigins(
-                                "http://learnbalochi.com",
+                                "https://www.learnbalochi.com",
                                 "https://learnbalochi.com",
                                 "http://localhost:4200",
                                 "http://localhost:4100",
